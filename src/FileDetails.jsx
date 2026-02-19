@@ -408,12 +408,12 @@ const FileDetails = () => {
               <FaDownload /> Original
             </button>
             
-            <button
+            {/* <button
               onClick={handleDownloadCurrent}
               className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded flex items-center gap-2 shadow-sm font-medium"
             >
               <FaDownload /> Current
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
