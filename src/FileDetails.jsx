@@ -6,7 +6,7 @@ import {
   FaFileInvoice, FaDownload
 } from 'react-icons/fa';
 
-const API_BASE = "http://localhost:5000"; // Change to your backend URL
+const API_BASE = "https://auto.ezkar.in"; // Change to your backend URL
 
 const FileDetails = () => {
   const navigate = useNavigate();
