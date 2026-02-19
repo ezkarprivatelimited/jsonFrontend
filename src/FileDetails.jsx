@@ -6,6 +6,8 @@ import {
   FaFileInvoice, FaDownload
 } from 'react-icons/fa';
 
+const API_BASE = "http://localhost:5000"; // Change to your backend URL
+
 const FileDetails = () => {
   const navigate = useNavigate();
   const { fileName } = useParams();
@@ -14,12 +16,13 @@ const FileDetails = () => {
   const [fileData, setFileData] = useState(null);
   const [originalData, setOriginalData] = useState(null);
   const [editableData, setEditableData] = useState(null);
-  const [originalIgstAmounts, setOriginalIgstAmounts] = useState({});
+  const [originalTaxAmounts, setOriginalTaxAmounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
   const [othChrgManual, setOthChrgManual] = useState(false);
+  const [isIntraState, setIsIntraState] = useState(false);
 
   useEffect(() => {
     const fetchFileData = async () => {
@@ -27,7 +30,7 @@ const FileDetails = () => {
         setLoading(true);
         setError(null);
         const response = await axios.get(
-          `https://auto.ezkar.in/file/${encodeURIComponent(decodedFileName)}`
+          `${API_BASE}/file/${encodeURIComponent(decodedFileName)}`
         );
         const data = response.data;
 
@@ -35,6 +38,13 @@ const FileDetails = () => {
         const deepCopy = structuredClone ? structuredClone(data) : JSON.parse(JSON.stringify(data));
         setOriginalData(deepCopy);
         setEditableData(deepCopy);
+
+        // Check if it's intra-state (same state) or inter-state (different states)
+        const sellerState = data?.data?.[0]?.SellerDtls?.Stcd || '';
+        const buyerState = data?.data?.[0]?.BuyerDtls?.Stcd || '';
+        const intraState = sellerState === buyerState && sellerState !== '';
+        setIsIntraState(intraState);
+
         setOthChrgManual(false);
         setLoading(false);
       } catch (err) {
@@ -65,7 +75,7 @@ const FileDetails = () => {
   const handleDownloadOriginal = async () => {
     try {
       const response = await axios.get(
-        `https://auto.ezkar.in/file/${encodeURIComponent(decodedFileName)}/download`,
+        `${API_BASE}/file/${encodeURIComponent(decodedFileName)}/download`,
         { responseType: 'blob' }
       );
 
@@ -78,7 +88,6 @@ const FileDetails = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      navigate(-1);
     } catch (err) {
       console.error('Download failed:', err);
       alert('Could not download original file');
@@ -104,12 +113,16 @@ const FileDetails = () => {
     const copy = structuredClone ? structuredClone(fileData) : JSON.parse(JSON.stringify(fileData));
     setEditableData(copy);
 
-    // Preserve original IGST amounts per item (keyed by SlNo)
-    const igstMap = {};
+    // Store original tax amounts
+    const taxMap = {};
     copy.data[0].ItemList.forEach((item) => {
-      igstMap[item.SlNo] = Number(item.IgstAmt || 0);
+      taxMap[item.SlNo] = {
+        igst: Number(item.IgstAmt || 0),
+        cgst: Number(item.CgstAmt || 0),
+        sgst: Number(item.SgstAmt || 0),
+      };
     });
-    setOriginalIgstAmounts(igstMap);
+    setOriginalTaxAmounts(taxMap);
 
     setOthChrgManual(false);
     setEditing(true);
@@ -118,7 +131,7 @@ const FileDetails = () => {
 
   const cancelEditing = () => {
     setEditableData(null);
-    setOriginalIgstAmounts({});
+    setOriginalTaxAmounts({});
     setOthChrgManual(false);
     setEditing(false);
     setSaveStatus('');
@@ -130,12 +143,17 @@ const FileDetails = () => {
       const newData = structuredClone ? structuredClone(prev) : JSON.parse(JSON.stringify(prev));
       const item = newData.data[0].ItemList[index];
 
-      if (['Qty', 'UnitPrice', 'GstRt', 'Discount'].includes(field)) {
-        item[field] = value === '' ? 0 : parseFloat(value) || 0;
+      // Allow empty strings for numeric fields
+      if (['Qty', 'UnitPrice', 'Discount'].includes(field)) {
+        item[field] = value === '' ? '' : parseFloat(value) || 0;
+      } else if (field === 'GstRt') {
+        // Don't allow changing GST rate as it would affect tax amounts
+        return prev;
       } else {
         item[field] = value;
       }
 
+      // Recalculate amounts based on quantity, price, and discount only
       const qty = Number(item.Qty || 0);
       const unitPrice = Number(item.UnitPrice || 0);
       const discount = Number(item.Discount || 0);
@@ -144,18 +162,19 @@ const FileDetails = () => {
       const discAmt = gross * (discount / 100);
       const taxable = gross - discAmt;
 
-      // ────────────────────────────────────────────────
-      // Keep ORIGINAL IGST amount — do NOT recalculate
-      const originalIgst = originalIgstAmounts[item.SlNo] || 0;
-      item.IgstAmt = Number(originalIgst.toFixed(2));
-      // ────────────────────────────────────────────────
+      // Preserve original tax amounts
+      const originalTax = originalTaxAmounts[item.SlNo] || { igst: 0, cgst: 0, sgst: 0 };
+      
+      // Keep the original tax values
+      item.IgstAmt = originalTax.igst;
+      item.CgstAmt = originalTax.cgst;
+      item.SgstAmt = originalTax.sgst;
 
       item.TotAmt = Number(taxable.toFixed(2));
       item.AssAmt = Number(taxable.toFixed(2));
-      item.TotItemVal = Number((taxable + originalIgst).toFixed(2));
 
-      item.CgstAmt = 0;
-      item.SgstAmt = 0;
+      const totalTax = Number(item.IgstAmt || 0) + Number(item.CgstAmt || 0) + Number(item.SgstAmt || 0);
+      item.TotItemVal = Number((taxable + totalTax).toFixed(2));
 
       updateTotals(newData);
       return newData;
@@ -167,20 +186,24 @@ const FileDetails = () => {
     const items = data.data[0].ItemList;
 
     let assVal = 0;
+    let cgstVal = 0;
+    let sgstVal = 0;
     let igstVal = 0;
-    let totInvValBase = 0;
+    let totItemValBase = 0;
 
     items.forEach((item) => {
       assVal += Number(item.AssAmt || 0);
-      igstVal += Number(item.IgstAmt || 0);          // uses preserved original value
-      totInvValBase += Number(item.TotItemVal || 0);
+      cgstVal += Number(item.CgstAmt || 0);
+      sgstVal += Number(item.SgstAmt || 0);
+      igstVal += Number(item.IgstAmt || 0);
+      totItemValBase += Number(item.TotItemVal || 0);
     });
 
     const valDtls = data.data[0].ValDtls || {};
     valDtls.AssVal = Number(assVal.toFixed(2));
+    valDtls.CgstVal = Number(cgstVal.toFixed(2));
+    valDtls.SgstVal = Number(sgstVal.toFixed(2));
     valDtls.IgstVal = Number(igstVal.toFixed(2));
-    valDtls.CgstVal = 0;
-    valDtls.SgstVal = 0;
     valDtls.CesVal = 0;
     valDtls.Discount = 0;
 
@@ -190,7 +213,7 @@ const FileDetails = () => {
 
     const othChrg = Number(valDtls.OthChrg || 0);
     const rndOff = Number(valDtls.RndOffAmt || 0);
-    valDtls.TotInvVal = Number((totInvValBase + othChrg + rndOff).toFixed(2));
+    valDtls.TotInvVal = Number((totItemValBase + othChrg + rndOff).toFixed(2));
   };
 
   const handleOthChrgChange = (e) => {
@@ -225,8 +248,8 @@ const FileDetails = () => {
         TotAmt: 0,
         Discount: 0,
         AssAmt: 0,
-        GstRt: 18,
-        IgstAmt: 0,               // new items → IGST = 0
+        GstRt: isIntraState ? 5 : 18,
+        IgstAmt: 0,
         CgstAmt: 0,
         SgstAmt: 0,
         CesRt: 0,
@@ -237,10 +260,9 @@ const FileDetails = () => {
 
       items.push(newItem);
 
-      // Also store 0 as "original" IGST for new item
-      setOriginalIgstAmounts((prev) => ({
+      setOriginalTaxAmounts((prev) => ({
         ...prev,
-        [newSlNo]: 0,
+        [newSlNo]: { igst: 0, cgst: 0, sgst: 0 },
       }));
 
       updateTotals(newData);
@@ -257,16 +279,14 @@ const FileDetails = () => {
 
       items.splice(index, 1);
 
-      // Renumber SlNo
+      // Renumber items
       items.forEach((item, i) => {
         item.SlNo = String(i + 1);
       });
 
-      // Clean up original IGST map
-      setOriginalIgstAmounts((prev) => {
+      setOriginalTaxAmounts((prev) => {
         const updated = { ...prev };
         delete updated[deletedSlNo];
-        // Re-key remaining items if needed (optional - usually not necessary)
         return updated;
       });
 
@@ -295,9 +315,9 @@ const FileDetails = () => {
         ItemList: editableData.data[0].ItemList,
         ValDtls: editableData.data[0].ValDtls,
       };
-
+      console.log("Payload to be sent:", payload);
       await axios.post(
-        `https://auto.ezkar.in/file/${encodeURIComponent(decodedFileName)}/update-items`,
+        `${API_BASE}/file/${encodeURIComponent(decodedFileName)}/update-items`,
         payload,
         { headers: { 'Content-Type': 'application/json' } }
       );
@@ -328,8 +348,15 @@ const FileDetails = () => {
 
   const totalAmount = items.reduce((sum, item) => sum + Number(item.TotAmt || 0), 0);
   const totalTaxable = items.reduce((sum, item) => sum + Number(item.AssAmt || 0), 0);
+  const totalCGST = items.reduce((sum, item) => sum + Number(item.CgstAmt || 0), 0);
+  const totalSGST = items.reduce((sum, item) => sum + Number(item.SgstAmt || 0), 0);
   const totalIGST = items.reduce((sum, item) => sum + Number(item.IgstAmt || 0), 0);
   const totalItemVal = items.reduce((sum, item) => sum + Number(item.TotItemVal || 0), 0);
+
+  // Calculate column span for grand total row
+  const baseColSpan = 10; // Basic columns before tax columns
+  const taxColSpan = isIntraState ? 2 : 1; // CGST+SGST (2) or IGST (1)
+  const grandTotalColSpan = baseColSpan + taxColSpan;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
@@ -380,6 +407,13 @@ const FileDetails = () => {
             >
               <FaDownload /> Original
             </button>
+            
+            <button
+              onClick={handleDownloadCurrent}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded flex items-center gap-2 shadow-sm font-medium"
+            >
+              <FaDownload /> Current
+            </button>
           </div>
         </div>
       </div>
@@ -396,6 +430,7 @@ const FileDetails = () => {
                   <h1 className="text-2xl md:text-3xl font-bold">TAX INVOICE</h1>
                   <p className="text-blue-100 mt-1">
                     {invoice.TranDtls?.TaxSch || 'GST'} • {invoice.TranDtls?.SupTyp || 'B2B'}
+                    {isIntraState ? ' • Intra-State' : ' • Inter-State'}
                   </p>
                 </div>
               </div>
@@ -416,6 +451,7 @@ const FileDetails = () => {
                 <p><span className="text-gray-500">GSTIN:</span> {invoice.SellerDtls?.Gstin || '-'}</p>
                 <p><span className="text-gray-500">Name:</span> {invoice.SellerDtls?.LglNm || '-'}</p>
                 <p><span className="text-gray-500">Place:</span> {invoice.SellerDtls?.Loc || '-'}</p>
+                <p><span className="text-gray-500">State Code:</span> {invoice.SellerDtls?.Stcd || '-'}</p>
               </div>
             </div>
             <div>
@@ -424,6 +460,7 @@ const FileDetails = () => {
                 <p><span className="text-gray-500">GSTIN:</span> {invoice.BuyerDtls?.Gstin || '-'}</p>
                 <p><span className="text-gray-500">Name:</span> {invoice.BuyerDtls?.LglNm || '-'}</p>
                 <p><span className="text-gray-500">Place:</span> {invoice.BuyerDtls?.Loc || '-'}</p>
+                <p><span className="text-gray-500">State Code:</span> {invoice.BuyerDtls?.Stcd || '-'}</p>
               </div>
             </div>
           </div>
@@ -457,7 +494,14 @@ const FileDetails = () => {
                   <th className="px-4 py-3 text-right font-semibold">Amount</th>
                   <th className="px-4 py-3 text-right font-semibold">Taxable</th>
                   <th className="px-4 py-3 text-right font-semibold">GST %</th>
-                  <th className="px-4 py-3 text-right font-semibold">IGST</th>
+                  {isIntraState ? (
+                    <>
+                      <th className="px-4 py-3 text-right font-semibold">CGST</th>
+                      <th className="px-4 py-3 text-right font-semibold">SGST</th>
+                    </>
+                  ) : (
+                    <th className="px-4 py-3 text-right font-semibold">IGST</th>
+                  )}
                   <th className="px-4 py-3 text-right font-semibold">Total</th>
                   {editing && <th className="px-4 py-3 text-center font-semibold">Action</th>}
                 </tr>
@@ -494,7 +538,7 @@ const FileDetails = () => {
                         <input
                           type="number"
                           className="w-20 border border-gray-300 rounded px-2 py-1 text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={item.Qty ?? 0}
+                          value={item.Qty ?? ''}
                           onChange={(e) => handleItemChange(idx, 'Qty', e.target.value)}
                         />
                       ) : (
@@ -507,7 +551,7 @@ const FileDetails = () => {
                           type="number"
                           step="0.01"
                           className="w-24 border border-gray-300 rounded px-2 py-1 text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={item.UnitPrice ?? 0}
+                          value={item.UnitPrice ?? ''}
                           onChange={(e) => handleItemChange(idx, 'UnitPrice', e.target.value)}
                         />
                       ) : (
@@ -520,7 +564,7 @@ const FileDetails = () => {
                           type="number"
                           step="0.01"
                           className="w-20 border border-gray-300 rounded px-2 py-1 text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={item.Discount ?? 0}
+                          value={item.Discount ?? ''}
                           onChange={(e) => handleItemChange(idx, 'Discount', e.target.value)}
                         />
                       ) : (
@@ -530,22 +574,29 @@ const FileDetails = () => {
                     <td className="px-4 py-3 text-right font-medium">{Number(item.TotAmt ?? 0).toFixed(2)}</td>
                     <td className="px-4 py-3 text-right font-medium">{Number(item.AssAmt ?? 0).toFixed(2)}</td>
                     <td className="px-4 py-3 text-right">
-                      {editing ? (
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="w-16 border border-gray-300 rounded px-2 py-1 text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={item.GstRt ?? 0}
-                          onChange={(e) => handleItemChange(idx, 'GstRt', e.target.value)}
-                        />
-                      ) : (
-                        Number(item.GstRt ?? 0).toFixed(1)
-                      )}
+                      {item.GstRt ? Number(item.GstRt).toFixed(1) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-right">{Number(item.IgstAmt ?? 0).toFixed(2)}</td>
+
+                    {/* Tax columns - always show original values */}
+                    {isIntraState ? (
+                      <>
+                        <td className="px-4 py-3 text-right">
+                          {item.CgstAmt ? Number(item.CgstAmt).toFixed(2) : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {item.SgstAmt ? Number(item.SgstAmt).toFixed(2) : '—'}
+                        </td>
+                      </>
+                    ) : (
+                      <td className="px-4 py-3 text-right">
+                        {item.IgstAmt ? Number(item.IgstAmt).toFixed(2) : '—'}
+                      </td>
+                    )}
+
                     <td className="px-4 py-3 text-right font-bold text-blue-700">
                       {Number(item.TotItemVal ?? 0).toFixed(2)}
                     </td>
+
                     {editing && (
                       <td className="px-4 py-3 text-center">
                         <button
@@ -566,7 +617,14 @@ const FileDetails = () => {
                   <td className="px-4 py-3 text-right text-green-700">{totalAmount.toFixed(2)}</td>
                   <td className="px-4 py-3 text-right text-green-700">{totalTaxable.toFixed(2)}</td>
                   <td className="px-4 py-3 text-right"></td>
-                  <td className="px-4 py-3 text-right text-green-700">{totalIGST.toFixed(2)}</td>
+                  {isIntraState ? (
+                    <>
+                      <td className="px-4 py-3 text-right text-green-700">{totalCGST.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right text-green-700">{totalSGST.toFixed(2)}</td>
+                    </>
+                  ) : (
+                    <td className="px-4 py-3 text-right text-green-700">{totalIGST.toFixed(2)}</td>
+                  )}
                   <td className="px-4 py-3 text-right text-blue-800">{totalItemVal.toFixed(2)}</td>
                   {editing && <td></td>}
                 </tr>
@@ -582,14 +640,10 @@ const FileDetails = () => {
           </div>
 
           <div className="p-6">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
               <div className="bg-gray-50 p-4 rounded-lg text-center">
                 <p className="text-sm text-gray-600">AssVal</p>
                 <p className="text-xl font-bold mt-1">₹{Number(valDtls.AssVal || 0).toFixed(2)}</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-gray-600">IGST</p>
-                <p className="text-xl font-bold text-emerald-700 mt-1">₹{Number(valDtls.IgstVal || 0).toFixed(2)}</p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg text-center">
                 <p className="text-sm text-gray-600">CGST</p>
@@ -598,6 +652,10 @@ const FileDetails = () => {
               <div className="bg-gray-50 p-4 rounded-lg text-center">
                 <p className="text-sm text-gray-600">SGST</p>
                 <p className="text-xl font-bold mt-1">₹{Number(valDtls.SgstVal || 0).toFixed(2)}</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg text-center">
+                <p className="text-sm text-gray-600">IGST</p>
+                <p className="text-xl font-bold text-emerald-700 mt-1">₹{Number(valDtls.IgstVal || 0).toFixed(2)}</p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg text-center">
                 <p className="text-sm text-gray-600">Cess</p>
