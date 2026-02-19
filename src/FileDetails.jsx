@@ -27,7 +27,7 @@ const FileDetails = () => {
         setLoading(true);
         setError(null);
         const response = await axios.get(
-          `http://localhost:5000/file/${encodeURIComponent(decodedFileName)}`
+          `https://auto.ezkar.in/file/${encodeURIComponent(decodedFileName)}`
         );
         const data = response.data;
 
@@ -65,7 +65,7 @@ const FileDetails = () => {
   const handleDownloadOriginal = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:5000/file/${encodeURIComponent(decodedFileName)}`,
+        `https://auto.ezkar.in/file/${encodeURIComponent(decodedFileName)}`,
         { responseType: 'blob' }
       );
       const blob = new Blob([response.data], { type: 'application/json' });
@@ -294,8 +294,8 @@ const FileDetails = () => {
         ValDtls: editableData.data[0].ValDtls,
       };
 
-      await axios.post(
-        `http://localhost:5000/file/${encodeURIComponent(decodedFileName)}/update-items`,
+        await axios.post(
+          `https://auto.ezkar.in/file/${encodeURIComponent(decodedFileName)}/update-items`,
         payload,
         { headers: { 'Content-Type': 'application/json' } }
       );

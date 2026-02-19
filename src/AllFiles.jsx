@@ -22,7 +22,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = "https://auto.ezkar.in";
 
 const FileList = () => {
   const navigate = useNavigate();
@@ -89,7 +89,7 @@ const FileList = () => {
       setUploading(true);
       setUploadError(null);
 
-      await axios.post(`http://localhost:5000/file/upload`, formData, {
+      await axios.post(`${API_BASE}/file/upload`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
