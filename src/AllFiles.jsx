@@ -74,10 +74,10 @@ const FileList = () => {
   // UPLOAD FILE
   // ===============================
   const handleFileUpload = async (event) => {
-    const selectedFile = event.target.files[0];
+    const selectedFile = event.target.files?.[0];
     if (!selectedFile) return;
 
-    if (!selectedFile.name.endsWith(".json")) {
+    if (!selectedFile.name.toLowerCase().endsWith(".json")) {
       setUploadError("Only JSON files are allowed");
       return;
     }
@@ -89,13 +89,20 @@ const FileList = () => {
       setUploading(true);
       setUploadError(null);
 
-      await axios.post(`${API_BASE}/file/upload`, formData, {
+      // Optional: you can get the server response if your backend returns something useful
+      const response = await axios.post(`${API_BASE}/file/upload`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
+      // Refresh file list
       await fetchFiles();
+
+      // Redirect to the newly uploaded file's detail page
+      const uploadedFileName = selectedFile.name;
+      navigate(`/file/${encodeURIComponent(uploadedFileName)}`);
+
     } catch (err) {
-      console.error(err);
+      console.error("Upload error:", err);
       setUploadError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
@@ -235,11 +242,10 @@ const FileList = () => {
               />
               <div
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white transition-colors
-                ${
-                  uploading
+                ${uploading
                     ? "bg-gray-400 cursor-not-allowed"
                     : "bg-blue-600 hover:bg-blue-700"
-                }`}
+                  }`}
               >
                 <FaCloudUploadAlt />
                 {uploading ? "Uploading..." : "Upload JSON"}

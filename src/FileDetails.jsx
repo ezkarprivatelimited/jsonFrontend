@@ -65,9 +65,10 @@ const FileDetails = () => {
   const handleDownloadOriginal = async () => {
     try {
       const response = await axios.get(
-        `https://auto.ezkar.in/file/${encodeURIComponent(decodedFileName)}`,
+        `https://auto.ezkar.in/file/${encodeURIComponent(decodedFileName)}/download`,
         { responseType: 'blob' }
       );
+
       const blob = new Blob([response.data], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -77,6 +78,7 @@ const FileDetails = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      navigate(-1);
     } catch (err) {
       console.error('Download failed:', err);
       alert('Could not download original file');
@@ -294,8 +296,8 @@ const FileDetails = () => {
         ValDtls: editableData.data[0].ValDtls,
       };
 
-        await axios.post(
-          `https://auto.ezkar.in/file/${encodeURIComponent(decodedFileName)}/update-items`,
+      await axios.post(
+        `https://auto.ezkar.in/file/${encodeURIComponent(decodedFileName)}/update-items`,
         payload,
         { headers: { 'Content-Type': 'application/json' } }
       );
@@ -373,10 +375,10 @@ const FileDetails = () => {
             )}
 
             <button
-              onClick={handleDownloadCurrent}
+              onClick={handleDownloadOriginal}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded flex items-center gap-2 shadow-sm font-medium"
             >
-              <FaDownload /> Current
+              <FaDownload /> Original
             </button>
           </div>
         </div>
