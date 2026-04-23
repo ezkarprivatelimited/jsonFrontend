@@ -4,14 +4,14 @@ import EditableValue from './EditableField';
 
 const EditableItemRow = ({ item, index, editing, onValueChange, onDelete }) => {
   return (
-    <tr className="hover:bg-gray-50">
+    <tr className="hover:bg-gray-50 border-b">
       <td className="px-4 py-3 text-sm text-gray-900">{item.SlNo}</td>
       <td className="px-4 py-3 text-sm text-gray-900">
         <EditableValue
           value={item.PrdDesc}
           onSave={(val) => onValueChange('PrdDesc', val)}
           editing={editing}
-          className="text-sm"
+          className="text-sm font-medium"
         />
       </td>
       <td className="px-4 py-3 text-sm text-gray-900 text-right">
@@ -45,7 +45,7 @@ const EditableItemRow = ({ item, index, editing, onValueChange, onDelete }) => {
           onSave={(val) => onValueChange('UnitPrice', parseFloat(val) || 0)}
           editing={editing}
           type="number"
-          className="text-sm"
+          className="text-sm font-semibold"
         />
       </td>
       <td className="px-4 py-3 text-sm text-gray-900 text-right">
@@ -57,17 +57,17 @@ const EditableItemRow = ({ item, index, editing, onValueChange, onDelete }) => {
           className="text-sm"
         />
       </td>
-      <td className="px-4 py-3 text-sm text-gray-900 text-right">
-        ₹{parseFloat(item.IgstAmt).toFixed(2)}
+      <td className="px-4 py-3 text-sm text-gray-900 text-right text-indigo-600 font-medium">
+        ₹{parseFloat(item.IgstAmt || item.CgstAmt + item.SgstAmt || 0).toFixed(2)}
       </td>
-      <td className="px-4 py-3 text-sm text-gray-900 text-right">
-        ₹{parseFloat(item.TotItemVal).toFixed(2)}
+      <td className="px-4 py-3 text-sm text-gray-900 text-right text-blue-700 font-bold">
+        ₹{parseFloat(item.TotItemVal || 0).toFixed(2)}
       </td>
       {editing && (
         <td className="px-4 py-3 text-sm text-gray-900 text-center">
           <button
             onClick={onDelete}
-            className="text-red-500 hover:text-red-700 transition-colors"
+            className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-full hover:bg-red-50"
           >
             <FaTrash />
           </button>
