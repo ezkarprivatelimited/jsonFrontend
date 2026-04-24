@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { BiLoader } from "react-icons/bi";
 import {
 	FaArrowLeft,
@@ -117,7 +117,9 @@ const FileDetails = () => {
 			try {
 				await refreshUser(true);
 			} catch {
-				console.warn("Profile refresh failed after download — navigating anyway");
+				console.warn(
+					"Profile refresh failed after download — navigating anyway",
+				);
 			}
 
 			// Always navigate to dashboard after a successful download
@@ -269,8 +271,6 @@ const FileDetails = () => {
 		valDtls.CgstVal = Number(cgstVal.toFixed(2));
 		valDtls.SgstVal = Number(sgstVal.toFixed(2));
 		valDtls.IgstVal = Number(igstVal.toFixed(2));
-		valDtls.CesVal = 0;
-		valDtls.Discount = 0;
 
 		if (isTraderRef.current) {
 			// For traders: OthChrg stays untouched, TotInvVal recalculates naturally
