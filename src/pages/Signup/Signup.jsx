@@ -2,33 +2,21 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import {
 	FiBriefcase,
-	FiCheckCircle,
 	FiEye,
 	FiEyeOff,
-	FiLayers,
+	FiFileText,
 	FiLock,
 	FiMail,
 	FiPhone,
 	FiUser,
-	FiUserPlus,
 } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import { API_ENDPOINTS } from "../../api/endpoints";
 
-const ROLE_OPTIONS = [
-	{
-		value: "trader",
-		label: "Trader",
-		desc: "I buy and sell goods",
-		icon: "🛒",
-	},
-	{
-		value: "manufacturer",
-		label: "Manufacturer",
-		desc: "I manufacture goods",
-		icon: "🏭",
-	},
+const ROLES = [
+	{ value: "trader", label: "Trader", icon: "🛒" },
+	{ value: "manufacturer", label: "Manufacturer", icon: "🏭" },
 ];
 
 const Signup = () => {
@@ -45,6 +33,8 @@ const Signup = () => {
 	const [error, setError] = useState("");
 	const [success, setSuccess] = useState(false);
 	const [loading, setLoading] = useState(false);
+	const [showPwd, setShowPwd] = useState(false);
+	const [showConfirm, setShowConfirm] = useState(false);
 
 	const set = (field) => (e) =>
 		setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -52,23 +42,13 @@ const Signup = () => {
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 		setError("");
-
-		if (!form.role) {
-			setError("Please select your account type");
-			return;
-		}
-		if (!/^\d{10}$/.test(form.phone)) {
-			setError("Enter a valid 10-digit mobile number");
-			return;
-		}
-		if (form.password !== form.confirmPassword) {
-			setError("Passwords do not match");
-			return;
-		}
-		if (form.password.length < 6) {
-			setError("Password must be at least 6 characters");
-			return;
-		}
+		if (!form.role) return setError("Please select your account type");
+		if (!/^\d{10}$/.test(form.phone))
+			return setError("Enter a valid 10-digit mobile number");
+		if (form.password !== form.confirmPassword)
+			return setError("Passwords do not match");
+		if (form.password.length < 6)
+			return setError("Password must be at least 6 characters");
 
 		setLoading(true);
 		try {
@@ -92,24 +72,24 @@ const Signup = () => {
 
 	if (success) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-zinc-50 p-6 font-sans antialiased">
+			<div className="min-h-screen flex items-center justify-center bg-slate-50">
 				<motion.div
-					initial={{ opacity: 0, scale: 0.95 }}
+					initial={{ opacity: 0, scale: 0.96 }}
 					animate={{ opacity: 1, scale: 1 }}
-					className="w-full max-w-md bg-white border border-zinc-200 p-10 rounded-2xl shadow-sm text-center">
-					<div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-						<FiCheckCircle className="text-green-600 text-3xl" />
+					className="bg-white border border-slate-200 rounded-xl p-10 max-w-sm w-full text-center shadow-sm">
+					<div className="w-14 h-14 bg-green-50 border border-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
+						<span className="text-2xl">✓</span>
 					</div>
-					<h2 className="text-xl font-bold text-zinc-900 mb-2">
-						Request Submitted!
+					<h2 className="text-xl font-semibold text-slate-900 mb-2">
+						Request Submitted
 					</h2>
-					<p className="text-sm text-zinc-500 mb-6">
-						Your account request has been sent to the admin for approval. You'll
-						be able to log in once it's approved.
+					<p className="text-slate-500 text-sm mb-6">
+						Your account request has been sent. You'll be able to log in once an
+						admin approves it.
 					</p>
 					<button
 						onClick={() => navigate("/login")}
-						className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-semibold py-3 rounded-xl transition-all text-sm">
+						className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
 						Back to Login
 					</button>
 				</motion.div>
@@ -118,195 +98,285 @@ const Signup = () => {
 	}
 
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-zinc-50 p-6 font-sans antialiased">
-			<motion.div
-				initial={{ opacity: 0, scale: 0.98 }}
-				animate={{ opacity: 1, scale: 1 }}
-				transition={{ duration: 0.4, ease: "easeOut" }}
-				className="w-full max-w-lg bg-white border border-zinc-200 p-8 rounded-2xl shadow-sm">
-				{/* Header */}
-				<div className="text-center mb-8">
-					<div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-100">
-						<FiLayers className="text-xl text-white" />
+		<div className="min-h-screen flex">
+			{/* Left Panel */}
+			<div className="hidden lg:flex w-5/12 bg-slate-900 flex-col justify-between p-12 relative overflow-hidden">
+				<div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-indigo-800/30" />
+				<div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+				<div className="absolute -bottom-40 -left-20 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl" />
+
+				{/* Logo */}
+				<div className="relative flex items-center gap-3">
+					<div className="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center">
+						<img
+							src="./icon.ico"
+							alt="Icon"
+							className="w-full h-full object-contain"
+						/>
 					</div>
-					<h2 className="text-xl font-bold text-zinc-900 tracking-tight">
-						Create an account
-					</h2>
-					<p className="text-sm text-zinc-500 mt-1">
-						Submit a request — admin will approve your access
+					<span className="text-white text-lg font-semibold">
+						Ezkar Private Limited
+					</span>
+				</div>
+
+				{/* Hero */}
+				<div className="relative">
+					<h1 className="text-3xl font-bold text-white leading-snug mb-4">
+						Effortless JSON Management
+					</h1>
+					<p className="text-slate-400 text-sm leading-relaxed mb-8">
+						Upload, edit, and export JSON files with a clean professional
+						interface. No code required.
 					</p>
+					<div className="space-y-3">
+						{[
+							"Smart data visualization",
+							"One-click field editing",
+							"Production-ready exports",
+						].map((f, i) => (
+							<motion.div
+								key={i}
+								initial={{ opacity: 0, x: -12 }}
+								animate={{ opacity: 1, x: 0 }}
+								transition={{ delay: 0.3 + i * 0.1 }}
+								className="flex items-center gap-3">
+								<div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+								<span className="text-slate-300 text-sm">{f}</span>
+							</motion.div>
+						))}
+					</div>
 				</div>
 
-				{error && (
-					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						className="bg-rose-50 border border-rose-100 text-rose-600 p-3 rounded-lg text-xs mb-6 text-center font-semibold">
-						{error}
-					</motion.div>
-				)}
-
-				<form onSubmit={handleSubmit} className="space-y-5">
-					{/* Account Type */}
-					<div className="space-y-2">
-						<label className="text-xs font-semibold text-zinc-700 ml-1">
-							Who are you? *
-						</label>
-						<div className="grid grid-cols-2 gap-3">
-							{ROLE_OPTIONS.map((opt) => (
-								<button
-									key={opt.value}
-									type="button"
-									onClick={() =>
-										setForm((prev) => ({ ...prev, role: opt.value }))
-									}
-									className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition-all text-sm font-bold ${
-										form.role === opt.value
-											? "border-indigo-600 bg-indigo-50 text-indigo-700"
-											: "border-zinc-200 text-zinc-500 hover:border-zinc-300 hover:bg-zinc-50"
-									}`}>
-									<span className="text-2xl">{opt.icon}</span>
-									<span>{opt.label}</span>
-									<span className="text-[10px] font-normal text-zinc-400">
-										{opt.desc}
-									</span>
-								</button>
-							))}
-						</div>
-					</div>
-
-					{/* Name + Phone */}
-					<div className="grid grid-cols-2 gap-4">
-						<Field
-							label="Full Name"
-							icon={<FiUser size={16} />}
-							type="text"
-							placeholder="John Doe"
-							value={form.name}
-							onChange={set("name")}
-							required
-						/>
-						<Field
-							label="Phone Number"
-							icon={<FiPhone size={16} />}
-							type="tel"
-							placeholder="10-digit mobile number"
-							value={form.phone}
-							onChange={(e) => {
-								const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-								setForm((prev) => ({ ...prev, phone: val }));
-							}}
-							required
-						/>
-					</div>
-
-					{/* Email */}
-					<Field
-						label="Email Address"
-						icon={<FiMail size={16} />}
-						type="email"
-						placeholder="name@company.com"
-						value={form.email}
-						onChange={set("email")}
-						required
-					/>
-
-					{/* GST Number */}
-					<Field
-						label="GST Number"
-						icon={<FiBriefcase size={16} />}
-						type="text"
-						placeholder="22AAAAA0000A1Z5"
-						value={form.gstNumber}
-						onChange={set("gstNumber")}
-						required
-						maxLength={15}
-						style={{ textTransform: "uppercase" }}
-					/>
-
-					{/* Password + Confirm */}
-					<div className="grid grid-cols-2 gap-4">
-						<PasswordField
-							label="Password"
-							placeholder="••••••••"
-							value={form.password}
-							onChange={set("password")}
-							required
-						/>
-						<PasswordField
-							label="Confirm Password"
-							placeholder="••••••••"
-							value={form.confirmPassword}
-							onChange={set("confirmPassword")}
-							required
-						/>
-					</div>
-
-					<button
-						type="submit"
-						disabled={loading}
-						className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-semibold py-3 rounded-xl transition-all shadow-sm active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2">
-						{loading ? (
-							<div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-						) : (
-							<>
-								<span>Submit Request</span>
-								<FiUserPlus />
-							</>
-						)}
-					</button>
-				</form>
-
-				<p className="text-center text-xs text-zinc-400 mt-6">
-					Already have an account?{" "}
-					<Link
-						to="/login"
-						className="text-indigo-600 font-semibold hover:text-indigo-700">
-						Sign in
-					</Link>
-				</p>
-			</motion.div>
-		</div>
-	);
-};
-
-const Field = ({ label, icon, ...props }) => (
-	<div className="space-y-1.5">
-		<label className="text-xs font-semibold text-zinc-700 ml-1">{label}</label>
-		<div className="relative group">
-			<div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400 group-focus-within:text-indigo-600 transition-colors">
-				{icon}
+				<div className="relative text-slate-600 text-xs">
+					© 2026 Ezkar Pvt Ltd
+				</div>
 			</div>
-			<input
-				{...props}
-				className="w-full bg-white border border-zinc-200 text-zinc-900 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:ring-4 focus:ring-indigo-600/5 focus:border-indigo-600/30 transition-all text-sm placeholder:text-zinc-400"
-			/>
-		</div>
-	</div>
-);
 
-const PasswordField = ({ label, ...props }) => {
-	const [show, setShow] = useState(false);
-	return (
-		<div className="space-y-1.5">
-			<label className="text-xs font-semibold text-zinc-700 ml-1">
-				{label}
-			</label>
-			<div className="relative group">
-				<div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400 group-focus-within:text-indigo-600 transition-colors">
-					<FiLock size={16} />
+			{/* Right Panel */}
+			<div className="flex-1 bg-white overflow-y-auto">
+				<div className="min-h-full flex items-center justify-center p-8">
+					<motion.div
+						initial={{ opacity: 0, y: 12 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.4 }}
+						className="w-full max-w-md py-4">
+						{/* Mobile Logo */}
+						<div className="flex items-center gap-2 mb-7 lg:hidden">
+							<div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+								<FiFileText size={15} className="text-white" />
+							</div>
+							<span className="text-slate-800 font-semibold">Ezkar</span>
+						</div>
+
+						<div className="mb-7">
+							<h2 className="text-2xl font-semibold text-slate-900 mb-1.5">
+								Create an account
+							</h2>
+							<p className="text-slate-500 text-sm">
+								Submit a request — admin will approve your access.
+							</p>
+						</div>
+
+						{error && (
+							<div className="bg-red-50 border border-red-100 text-red-600 text-sm px-4 py-3 rounded-lg mb-5">
+								{error}
+							</div>
+						)}
+
+						<form onSubmit={handleSubmit} className="space-y-4">
+							{/* Role */}
+							<div>
+								<label className="block text-sm font-medium text-slate-700 mb-2">
+									Account type
+								</label>
+								<div className="grid grid-cols-2 gap-3">
+									{ROLES.map((r) => (
+										<button
+											key={r.value}
+											type="button"
+											onClick={() => setForm((p) => ({ ...p, role: r.value }))}
+											className={`flex items-center gap-2.5 px-4 py-3 rounded-lg border text-sm transition-all ${
+												form.role === r.value
+													? "border-blue-500 bg-blue-50 text-blue-700"
+													: "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+											}`}>
+											<span className="text-lg">{r.icon}</span>
+											<span className="font-medium">{r.label}</span>
+										</button>
+									))}
+								</div>
+							</div>
+
+							{/* Name + Phone */}
+							<div className="grid grid-cols-2 gap-3">
+								<div>
+									<label className="block text-sm font-medium text-slate-700 mb-1.5">
+										Full name
+									</label>
+									<div className="relative">
+										<FiUser
+											size={15}
+											className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+										/>
+										<input
+											type="text"
+											required
+											value={form.name}
+											onChange={set("name")}
+											placeholder="John Doe"
+											className="w-full pl-9 pr-3 py-2.5 text-sm text-slate-900 border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
+										/>
+									</div>
+								</div>
+								<div>
+									<label className="block text-sm font-medium text-slate-700 mb-1.5">
+										Mobile
+									</label>
+									<div className="relative">
+										<FiPhone
+											size={15}
+											className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+										/>
+										<input
+											type="tel"
+											required
+											value={form.phone}
+											onChange={(e) => {
+												const v = e.target.value
+													.replace(/\D/g, "")
+													.slice(0, 10);
+												setForm((p) => ({ ...p, phone: v }));
+											}}
+											placeholder="9876543210"
+											className="w-full pl-9 pr-3 py-2.5 text-sm text-slate-900 border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
+										/>
+									</div>
+								</div>
+							</div>
+
+							{/* Email */}
+							<div>
+								<label className="block text-sm font-medium text-slate-700 mb-1.5">
+									Email address
+								</label>
+								<div className="relative">
+									<FiMail
+										size={15}
+										className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+									/>
+									<input
+										type="email"
+										required
+										value={form.email}
+										onChange={set("email")}
+										placeholder="you@company.com"
+										className="w-full pl-9 pr-3 py-2.5 text-sm text-slate-900 border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
+									/>
+								</div>
+							</div>
+
+							{/* GSTIN */}
+							<div>
+								<label className="block text-sm font-medium text-slate-700 mb-1.5">
+									GSTIN
+								</label>
+								<div className="relative">
+									<FiBriefcase
+										size={15}
+										className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+									/>
+									<input
+										type="text"
+										required
+										value={form.gstNumber}
+										onChange={set("gstNumber")}
+										placeholder="22AAAAA0000A1Z5"
+										maxLength={15}
+										className="w-full pl-9 pr-3 py-2.5 text-sm text-slate-900 border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-400 uppercase"
+									/>
+								</div>
+							</div>
+
+							{/* Passwords */}
+							<div className="grid grid-cols-2 gap-3">
+								<div>
+									<label className="block text-sm font-medium text-slate-700 mb-1.5">
+										Password
+									</label>
+									<div className="relative">
+										<FiLock
+											size={15}
+											className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+										/>
+										<input
+											type={showPwd ? "text" : "password"}
+											required
+											value={form.password}
+											onChange={set("password")}
+											placeholder="••••••••"
+											className="w-full pl-9 pr-9 py-2.5 text-sm text-slate-900 border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
+										/>
+										<button
+											type="button"
+											onClick={() => setShowPwd((v) => !v)}
+											className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+											{showPwd ? <FiEyeOff size={15} /> : <FiEye size={15} />}
+										</button>
+									</div>
+								</div>
+								<div>
+									<label className="block text-sm font-medium text-slate-700 mb-1.5">
+										Confirm
+									</label>
+									<div className="relative">
+										<FiLock
+											size={15}
+											className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+										/>
+										<input
+											type={showConfirm ? "text" : "password"}
+											required
+											value={form.confirmPassword}
+											onChange={set("confirmPassword")}
+											placeholder="••••••••"
+											className="w-full pl-9 pr-9 py-2.5 text-sm text-slate-900 border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
+										/>
+										<button
+											type="button"
+											onClick={() => setShowConfirm((v) => !v)}
+											className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+											{showConfirm ? (
+												<FiEyeOff size={15} />
+											) : (
+												<FiEye size={15} />
+											)}
+										</button>
+									</div>
+								</div>
+							</div>
+
+							<button
+								type="submit"
+								disabled={loading}
+								className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 mt-1">
+								{loading ? (
+									<div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+								) : (
+									"Submit Request"
+								)}
+							</button>
+						</form>
+
+						<p className="text-center text-sm text-slate-500 mt-6">
+							Already have an account?{" "}
+							<Link
+								to="/login"
+								className="text-blue-600 hover:text-blue-700 font-medium">
+								Sign in
+							</Link>
+						</p>
+					</motion.div>
 				</div>
-				<input
-					{...props}
-					type={show ? "text" : "password"}
-					className="w-full bg-white border border-zinc-200 text-zinc-900 rounded-xl py-2.5 pl-10 pr-10 focus:outline-none focus:ring-4 focus:ring-indigo-600/5 focus:border-indigo-600/30 transition-all text-sm placeholder:text-zinc-400"
-				/>
-				<button
-					type="button"
-					onClick={() => setShow((v) => !v)}
-					className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-indigo-600 transition-colors">
-					{show ? <FiEyeOff size={15} /> : <FiEye size={15} />}
-				</button>
 			</div>
 		</div>
 	);

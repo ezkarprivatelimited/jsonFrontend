@@ -145,14 +145,9 @@ const FileList = () => {
 	const [uploadError, setUploadError] = useState(null);
 
 	const fetchFiles = async () => {
-		try {
-			setLoading(true);
-			await refreshUser();
-		} catch {
-			setError("Failed to sync files");
-		} finally {
-			setLoading(false);
-		}
+		// Files are already synced via user state in AuthContext
+		// We only need this if we want to manually trigger a refresh
+		setLoading(false);
 	};
 
 	useEffect(() => {
@@ -256,23 +251,21 @@ const FileList = () => {
 				</div>
 
 				<div className="flex items-center gap-2">
-					{isAdmin && (
-						<label
-							className={`cursor-pointer ${uploading ? "pointer-events-none" : ""}`}>
-							<input
-								type="file"
-								accept=".json"
-								onChange={handleFileUpload}
-								className="hidden"
-							/>
-							<div
-								className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm transition-all
-								${uploading ? "bg-zinc-300" : "bg-indigo-600 hover:bg-indigo-700 active:scale-95"}`}>
-								<FiUploadCloud size={16} />
-								{uploading ? "Uploading…" : "Upload JSON"}
-							</div>
-						</label>
-					)}
+					<label
+						className={`cursor-pointer ${uploading ? "pointer-events-none" : ""}`}>
+						<input
+							type="file"
+							accept=".json"
+							onChange={handleFileUpload}
+							className="hidden"
+						/>
+						<div
+							className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm transition-all
+							${uploading ? "bg-zinc-300" : "bg-indigo-600 hover:bg-indigo-700 active:scale-95"}`}>
+							<FiUploadCloud size={16} />
+							{uploading ? "Uploading…" : "Upload JSON"}
+						</div>
+					</label>
 					<div className="flex bg-white border border-zinc-200 rounded-xl p-1 gap-0.5">
 						<button
 							onClick={() => setViewMode("grid")}

@@ -4,7 +4,6 @@ import {
 	FiChevronLeft,
 	FiChevronRight,
 	FiFolder,
-	FiLayers,
 	FiLogOut,
 	FiMenu,
 	FiUser,
@@ -22,8 +21,11 @@ const Layout = ({ children }) => {
 	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
 	const handleLogout = () => {
+		// Both calls are synchronous — React batches them into one render.
+		// user becomes null at the same time as the URL becomes /login,
+		// so the Login page never sees a logged-in user and won't redirect back.
 		logout();
-		navigate("/login");
+		navigate("/login", { replace: true });
 	};
 
 	const isAdmin = user?.role === "admin";
@@ -53,8 +55,12 @@ const Layout = ({ children }) => {
 				}`}>
 				<div className="h-16 flex items-center px-4 border-b border-zinc-100 shrink-0 overflow-hidden justify-between">
 					<div className="flex items-center gap-3">
-						<div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-100 shrink-0">
-							<FiLayers className="text-white text-base" />
+						<div className="w-8 h-8 rounded-lg shrink-0 overflow-hidden rounded-full">
+							<img
+								src="/icon.ico"
+								alt="Ezkar"
+								className="w-full h-full object-cover"
+							/>
 						</div>
 						<AnimatePresence>
 							{isSidebarOpen && (
@@ -62,8 +68,8 @@ const Layout = ({ children }) => {
 									initial={{ opacity: 0, x: -10 }}
 									animate={{ opacity: 1, x: 0 }}
 									exit={{ opacity: 0, x: -10 }}
-									className="font-bold text-base text-zinc-900 tracking-tight whitespace-nowrap">
-									Json<span className="text-indigo-600">Frontend</span>
+									className="font-bold text-base tracking-tight whitespace-nowrap text-blue-600">
+									JSON Editor
 								</motion.span>
 							)}
 						</AnimatePresence>
@@ -153,11 +159,15 @@ const Layout = ({ children }) => {
 							className="fixed inset-y-0 left-0 w-72 bg-white z-50 md:hidden flex flex-col">
 							<div className="h-16 flex items-center justify-between px-6 border-b border-zinc-100">
 								<Link to="/" className="flex items-center gap-3">
-									<div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-										<FiLayers />
+									<div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+										<img
+											src="/icon.ico"
+											alt="Ezkar"
+											className="w-full h-full object-contain"
+										/>
 									</div>
-									<span className="font-bold text-base text-zinc-900 tracking-tight">
-										JsonFrontend
+									<span className="font-bold text-base text-blue-600  tracking-tight">
+										JSON Editor
 									</span>
 								</Link>
 								<button
@@ -212,7 +222,7 @@ const Layout = ({ children }) => {
 								{user?.name || user?.email || "Admin User"}
 							</span>
 							<span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter">
-								{user.role}
+								{user?.role}
 							</span>
 						</div>
 
@@ -233,12 +243,12 @@ const Layout = ({ children }) => {
 				</header>
 
 				{/* --- PAGE CONTENT --- */}
-				<main className="flex-1 overflow-y-auto bg-zinc-50/50 p-4 md:p-8 custom-scrollbar">
+				<main className="flex-1 overflow-y-auto bg-zinc-50/50 px-4 custom-scrollbar py-2">
 					<motion.div
 						initial={{ opacity: 0, y: 10 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.3 }}
-						className="max-w-screen-2xl mx-auto">
+						className=" mx-auto">
 						{children}
 					</motion.div>
 				</main>

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	FiCheck,
 	FiLoader,
@@ -34,15 +34,19 @@ const ManageUsers = () => {
 	const [actionLoading, setActionLoading] = useState({});
 	const [selectedUser, setSelectedUser] = useState(null);
 	const [subModal, setSubModal] = useState(null); // userId waiting for subscription
+	const hasFetched = useRef(false);
 
 	const fetchUsers = async () => {
+		if (hasFetched.current) return;
 		try {
 			setLoading(true);
+			hasFetched.current = true;
 			setError(null);
 			const res = await api.get(API_ENDPOINTS.USERS);
 			setUsers(res.data.users || res.data.data || res.data);
 		} catch (err) {
 			setError("Failed to load users");
+			hasFetched.current = false;
 		} finally {
 			setLoading(false);
 		}
@@ -60,15 +64,17 @@ const ManageUsers = () => {
 				new Date(subsStart).getTime() + Number(subsDays) * 24 * 60 * 60 * 1000,
 			).toISOString();
 
-			await api.put(API_ENDPOINTS.USER_STATUS(userId), {
-				status: "active",
+			const response = await api.put(API_ENDPOINTS.USER_STATUS(userId), {
+				isActive: true,
 				subsValid,
 			});
+
+			const updatedUser = response.data.user;
+
 			setUsers((prev) =>
-				prev.map((u) => (u._id === userId ? { ...u, isActive: true } : u)),
+				prev.map((u) => (u._id === userId ? updatedUser : u)),
 			);
-			if (selectedUser?._id === userId)
-				setSelectedUser((u) => ({ ...u, isActive: true }));
+			if (selectedUser?._id === userId) setSelectedUser(updatedUser);
 		} catch {
 			alert("Failed to activate user");
 		} finally {
@@ -80,12 +86,16 @@ const ManageUsers = () => {
 	const handleReject = async (userId) => {
 		setActionLoading((prev) => ({ ...prev, [userId]: "rejecting" }));
 		try {
-			await api.put(API_ENDPOINTS.USER_STATUS(userId), {
-				status: "inactive",
+			const response = await api.put(API_ENDPOINTS.USER_STATUS(userId), {
+				isActive: false,
 			});
+
+			const updatedUser = response.data.user;
+
 			setUsers((prev) =>
-				prev.map((u) => (u._id === userId ? { ...u, isActive: false } : u)),
+				prev.map((u) => (u._id === userId ? updatedUser : u)),
 			);
+			if (selectedUser?._id === userId) setSelectedUser(updatedUser);
 		} catch {
 			alert("Failed to deactivate user");
 		} finally {

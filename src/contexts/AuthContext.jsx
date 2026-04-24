@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+	createContext,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import api from "../api/axios";
 import { API_ENDPOINTS } from "../api/endpoints";
 
@@ -15,34 +22,37 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
 	const [user, setUser] = useState(null);
 	const [loading, setLoading] = useState(true);
+	const isFetching = useRef(false);
 
-	const fetchUserProfile = async () => {
+	const fetchUserProfile = async (force = false) => {
+		// If already in-flight, skip
+		if (isFetching.current) return;
+
+		// If not forced and already have a user, skip
+		if (!force && user) return;
+
 		try {
+			isFetching.current = true;
 			const response = await api.get(API_ENDPOINTS.ME);
-			const userData = response.data.user || response.data.data || response.data;
+			const userData =
+				response.data.user || response.data.data || response.data;
 			setUser(userData);
-			localStorage.setItem("user", JSON.stringify(userData));
 		} catch (err) {
 			console.error("Profile fetch error:", err);
-			if (err.response?.status === 401) {
+			// Only log out on the initial auth check (not forced).
+			// A forced refresh failing (e.g. backend restart) should NOT
+			// clear an already-authenticated user.
+			if (!force) {
 				setUser(null);
-				localStorage.removeItem("user");
-				sessionStorage.removeItem("user");
 			}
 		} finally {
+			isFetching.current = false;
 			setLoading(false);
 		}
 	};
 
+	// Always fetch from API on mount — no localStorage
 	useEffect(() => {
-		const storedUser = localStorage.getItem("user") || sessionStorage.getItem("user");
-		if (storedUser) {
-			try {
-				setUser(JSON.parse(storedUser));
-			} catch (e) {
-				console.error("Error parsing stored user", e);
-			}
-		}
 		fetchUserProfile();
 	}, []);
 
@@ -54,19 +64,11 @@ export const AuthProvider = ({ children }) => {
 				rememberMe,
 			});
 
-			const { user: userData, success } = response.data;
+			const { success, user: userData } = response.data;
 
 			if (success || userData) {
-				// The backend sets the HttpOnly cookie automatically here.
-				// We only need to manage the user profile state.
-				const storage = rememberMe ? localStorage : sessionStorage;
-				
-				if (userData) {
-					storage.setItem("user", JSON.stringify(userData));
-					setUser(userData);
-				}
-
-				await fetchUserProfile();
+				// Always fetch full profile from /me to get files and latest data
+				await fetchUserProfile(true);
 				return { success: true };
 			}
 			return { success: false, error: "Authentication failed" };
@@ -79,16 +81,19 @@ export const AuthProvider = ({ children }) => {
 		}
 	};
 
-	const logout = async () => {
-		try {
-			await api.post(API_ENDPOINTS.LOGOUT);
-		} catch (err) {
-			console.error("Logout error:", err);
-		} finally {
-			localStorage.removeItem("user");
-			sessionStorage.removeItem("user");
-			setUser(null);
-		}
+	const logout = () => {
+		// Clear user state immediately (synchronous) so the login page
+		// never sees a logged-in user and redirects back
+		setUser(null);
+
+		// Fire-and-forget the server-side session invalidation
+		api.post(API_ENDPOINTS.LOGOUT).catch((err) =>
+			console.error("Logout API error:", err),
+		);
+	};
+
+	const refreshUser = async () => {
+		await fetchUserProfile(true);
 	};
 
 	const value = useMemo(
@@ -97,7 +102,7 @@ export const AuthProvider = ({ children }) => {
 			loading,
 			login,
 			logout,
-			refreshUser: fetchUserProfile,
+			refreshUser,
 		}),
 		[user, loading],
 	);

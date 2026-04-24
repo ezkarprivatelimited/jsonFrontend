@@ -1,4 +1,5 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { BiLoader } from "react-icons/bi";
 import {
 	FaArrowLeft,
 	FaDownload,
@@ -17,7 +18,7 @@ import { useAuth } from "../../contexts/AuthContext";
 const FileDetails = () => {
 	const navigate = useNavigate();
 	const { fileId } = useParams();
-	const { user } = useAuth();
+	const { user, refreshUser } = useAuth();
 	const isAdmin = user?.role === "admin";
 	const isTrader = user?.role === "trader"; // trader vs manufacturer
 
@@ -39,6 +40,12 @@ const FileDetails = () => {
 	const origAssValRef = useRef(0);
 	const origOthChrgRef = useRef(0);
 	const origTotInvValRef = useRef(0);
+	const isTraderRef = useRef(isTrader);
+
+	// Keep isTraderRef in sync with the user role
+	useEffect(() => {
+		isTraderRef.current = isTrader;
+	}, [isTrader]);
 
 	useEffect(() => {
 		const fetchFileData = async () => {
@@ -105,6 +112,16 @@ const FileDetails = () => {
 			link.click();
 			document.body.removeChild(link);
 			URL.revokeObjectURL(url);
+
+			// Try to refresh user profile — but don't block navigation if backend is down
+			try {
+				await refreshUser(true);
+			} catch {
+				console.warn("Profile refresh failed after download — navigating anyway");
+			}
+
+			// Always navigate to dashboard after a successful download
+			navigate("/");
 		} catch (err) {
 			console.error("Download failed:", err);
 			alert("Could not download original file");
@@ -255,16 +272,24 @@ const FileDetails = () => {
 		valDtls.CesVal = 0;
 		valDtls.Discount = 0;
 
-		if (!othChrgManual) {
-			// Absorb AssAmt delta into OthChrg, TotInvVal locked to original backend value
-			const assValDelta = assVal - origAssValRef.current;
-			valDtls.OthChrg = Number(
-				(origOthChrgRef.current - assValDelta).toFixed(2),
+		if (isTraderRef.current) {
+			// For traders: OthChrg stays untouched, TotInvVal recalculates naturally
+			const othChrg = Number(valDtls.OthChrg || 0);
+			valDtls.TotInvVal = Number(
+				(assVal + cgstVal + sgstVal + igstVal + othChrg).toFixed(2),
 			);
+		} else {
+			// For manufacturers/admin: absorb AssAmt delta into OthChrg,
+			// keeping TotInvVal locked to the original backend value
+			if (!othChrgManual) {
+				const assValDelta = assVal - origAssValRef.current;
+				valDtls.OthChrg = Number(
+					(origOthChrgRef.current - assValDelta).toFixed(2),
+				);
+			}
+			// TotInvVal always locked to original backend value
+			valDtls.TotInvVal = origTotInvValRef.current;
 		}
-
-		// TotInvVal always locked to original backend value
-		valDtls.TotInvVal = origTotInvValRef.current;
 	};
 
 	const handleOthChrgChange = (e) => {
@@ -387,6 +412,7 @@ const FileDetails = () => {
 	if (loading)
 		return (
 			<div className="min-h-screen flex items-center justify-center text-lg">
+				<BiLoader className="animate-spin text-blue-600" size={24} />
 				Loading invoice...
 			</div>
 		);
@@ -435,12 +461,13 @@ const FileDetails = () => {
 	return (
 		<div className="min-h-screen bg-gray-50 pb-12">
 			{/* Sticky Header */}
-			<div className="bg-white shadow-sm  z-20">
-				<div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+			<div className="bg-white shadow-sm sticky -top-2 z-50">
+				<div className="w-full mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 					<button
 						onClick={() => navigate(-1)}
 						className="flex items-center gap-2 text-gray-700 hover:text-blue-700 font-medium">
-						<FaArrowLeft /> Back
+						<FaArrowLeft />
+						{invoice.DocDtls?.No || "-"}
 					</button>
 
 					<div className="flex flex-wrap items-center gap-3 sm:gap-4">
@@ -459,32 +486,31 @@ const FileDetails = () => {
 							<span className="text-gray-500">No changes to save</span>
 						)}
 
-						{isAdmin &&
-							(editing ? (
-								<>
-									<button
-										onClick={handleSave}
-										disabled={!hasChanges() || saveStatus === "saving"}
-										className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-5 py-2 rounded flex items-center gap-2 shadow-sm font-medium">
-										<FaSave /> Save
-									</button>
-									<button
-										onClick={cancelEditing}
-										className="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded flex items-center gap-2 shadow-sm font-medium">
-										<FaTimes /> Cancel
-									</button>
-								</>
-							) : (
+						{editing ? (
+							<>
 								<button
-									onClick={startEditing}
-									className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded flex items-center gap-2 shadow-sm font-medium">
-									<FaEdit /> Edit Items
+									onClick={handleSave}
+									disabled={!hasChanges() || saveStatus === "saving"}
+									className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-5 py-2 rounded flex items-center gap-2 shadow-sm font-medium">
+									<FaSave /> Save
 								</button>
-							))}
+								<button
+									onClick={cancelEditing}
+									className="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded flex items-center gap-2 shadow-sm font-medium">
+									<FaTimes /> Cancel
+								</button>
+							</>
+						) : (
+							<button
+								onClick={startEditing}
+								className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded flex items-center gap-2 shadow-sm font-medium">
+								<FaEdit /> Edit Items
+							</button>
+						)}
 						<button
 							onClick={handleDownloadOriginal}
 							className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded flex items-center gap-2 shadow-sm font-medium">
-							<FaDownload /> Original
+							<FaDownload /> Download
 						</button>
 
 						{/* <button
@@ -498,9 +524,9 @@ const FileDetails = () => {
 			</div>
 
 			{/* Main Content */}
-			<div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+			<div className="w-full mx-auto py-4">
 				{/* Invoice Header Card */}
-				<div className="bg-white rounded-xl shadow mb-6 overflow-hidden">
+				<div className="bg-white rounded-xl shadow mb-3 overflow-hidden">
 					<div className="bg-linear-to-r from-blue-600 to-indigo-600 text-white p-6">
 						<div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
 							<div className="flex items-center gap-4">
