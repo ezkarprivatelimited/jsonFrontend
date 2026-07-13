@@ -22,7 +22,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 
-const API_BASE = "https://auto.ezkar.in";
+const API_BASE = "https://api.ezkar.in";
 
 const FileList = () => {
   const navigate = useNavigate();
